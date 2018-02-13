@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script automates the procedure for restoring Confluence or JIRA filesystem and database backups
+# This script automates the procedure for restoring Confluence or JIRA database backups
 
 # Common directories between Confluence and JIRA
 HOME_DIR="/var/atlassian/application-data"
@@ -8,8 +8,6 @@ INSTALL_DIR="/usr/local/atlassian"
 
 APP="null"
 SQLDUMP_FILE="null"
-INSTALLDIR_TAR="null"
-HOMEDIR_TAR="null"
 
 # Must be root to run this script
 if [ "`/usr/bin/id -urn`" != "root" ] ; then
@@ -18,15 +16,13 @@ if [ "`/usr/bin/id -urn`" != "root" ] ; then
 fi
 
 USAGE() {
-  echo -e "\nUsage: `basename $0` [ -c | -j ] -s [PATH-TO-SQLDUMP-FILE] -i [PATH-TO-INSTALLDIR-TAR] -h [PATH-TO-HOMEDIR-TAR]"
+  echo -e "\nUsage: `basename $0` [ -c | -j ] -s [PATH-TO-SQLDUMP-FILE]"
   echo -e "-c                        --> Restore a Confluence server"
   echo -e "-j                        --> Restore a JIRA server"
   echo -e "-s PATH-TO-SQLDUMP-FILE   --> Location of the SQL DUMP file"
-  echo -e "-i PATH-TO-INSTALLDIR-TAR --> Location of the Installation directory archive"
-  echo -e "-h PATH-TO-HOMEDIR-TAR    --> Location of the Home directory archive \n"
 }
 
-while getopts ":cjs:i:h:" OPT ; do
+while getopts ":cjs:" OPT ; do
   case $OPT in
     c)
       APP="confluence"
@@ -43,12 +39,6 @@ while getopts ":cjs:i:h:" OPT ; do
     s)
       SQLDUMP_FILE="$OPTARG"
       ;;
-    i)
-      INSTALLDIR_TAR="$OPTARG"
-      ;;
-    h)
-      HOMEDIR_TAR="$OPTARG"
-      ;;
     \?)
       echo -e "\nInvalid option: -$OPTARG" >&2
       USAGE
@@ -62,12 +52,17 @@ while getopts ":cjs:i:h:" OPT ; do
   esac
 done
 
-for VAR in $APP $SQLDUMP_FILE $INSTALLDIR_TAR $HOMEDIR_TAR ; do
+for VAR in $APP $SQLDUMP_FILE ; do
   if [ "$VAR" = "null" ] ; then
     USAGE
     exit 1
   fi
 done
+
+if [ ! -f $DBXML_CFG ] ; then
+  echo -e "\n$DBXML_CFG does not exist - exiting \n"
+  exit 1
+fi
 
 # Perform checks to determine if this script can run on this server
 # -------------------------------------------------------------------
@@ -97,7 +92,7 @@ else
 fi
 
 # Verify the file paths given exist and each file contains data
-for FILE in $SQLDUMP_FILE $INSTALLDIR_TAR $HOMEDIR_TAR ; do
+for FILE in $SQLDUMP_FILE ; do
   if [ ! -s $FILE ] ; then
     echo -e "\nCould not find file $FILE or $FILE is empty\n"
     exit 1
@@ -109,17 +104,6 @@ done
 
 # Begin the restoration procedures
 # -------------------------------------------------------------------
-
-# If necessary remove the existing $APP installation and home directories
-# This ensures a clean environment for the extraction of the tar files
-[ -d $INSTALL_DIR/$APP ] && rm -rf $INSTALL_DIR/$APP
-[ -d $HOME_DIR/$APP ] && rm -rf $HOME_DIR/$APP
-
-# Untar the archive files of the Install and Home directories
-echo -e "\nUnpacking the $APP Installation directory \n"
-tar xzf $INSTALLDIR_TAR -C $INSTALL_DIR
-echo -e "Unpacking the $APP Home directory \n"
-tar xzf $HOMEDIR_TAR -C $HOME_DIR
 
 # Get the database name from $APP's $DBXML_CFG file
 # Get the mysql server hostname, username, and password from the .my.cnf file
@@ -150,7 +134,4 @@ if [ $? -ne 0 ] ; then
   exit 1
 fi
 
-echo -e "\nRestoration of the $APP server is complete."
-
-echo -e "\nThe archive files you specified on the cmd line are still on this server taking up space"
-echo -e "If you no longer need them you should delete them \n"
+echo -e "\nRestoration of the $DBNAME database is complete."

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# JIRA/Confluence/Crowd do not have built in functionality to expire Tomcat logs:
+# JIRA/Confluence do not have built in functionality to expire Tomcat logs:
 # access_log.DATE
 # catalina.DATE.log
 # host-manager.DATE.log
@@ -13,57 +13,51 @@
 
 # Must be root to run this script
 if [ "`/usr/bin/id -urn`" != "root" ] ; then
-        echo -e "\nYou must be root to execute this script \n"
-        exit 1
+  echo -e "\nYou must be root to execute this script \n"
+  exit 1
 fi
 
 USAGE() {
-        echo -e "\nUsage: `basename $0` [ -c | -j | -w ] "
-        echo -e "-c --> Rotate Confluence Tomcat logs"
-        echo -e "-j --> Rotate JIRA Tomcat logs"
-        echo -e "-w --> Rotate Crowd Tomcat logs"
+  echo -e "\nUsage: `basename $0` [ -c | -j ] "
+  echo -e "-c --> Rotate Confluence Tomcat logs"
+  echo -e "-j --> Rotate JIRA Tomcat logs"
 }
 
 INSTALL_DIR="/usr/local/atlassian"
 SAVETIME=180
 APP="null"
 
-while getopts ":cjw" OPT ; do
-        case $OPT in
-                c)
-                        APP="confluence"
-			TOMCAT_LOG_DIR="$INSTALL_DIR/confluence/logs"
-                        ;;
-                j)
-                        APP="jira"
-			TOMCAT_LOG_DIR="$INSTALL_DIR/jira/logs"
-                        ;;
-                w)
-                        APP="crowd"
-			TOMCAT_LOG_DIR="$INSTALL_DIR/crowd/apache-tomcat/logs"
-                        ;;
-                \?)
-                        echo -e "\nInvalid option: -$OPTARG" >&2
-                        USAGE
-                        exit 1
-                        ;;
-                :)
-                        echo -e "\nOption -$OPTARG requires an argument" >&2
-                        USAGE
-                        exit 1
-                        ;;
-        esac
+while getopts ":cj" OPT ; do
+  case $OPT in
+    c)
+      APP="confluence"
+      TOMCAT_LOG_DIR="$INSTALL_DIR/confluence/logs"
+      ;;
+    j)
+      APP="jira"
+      TOMCAT_LOG_DIR="$INSTALL_DIR/jira/logs"
+      ;;
+    \?)
+      echo -e "\nInvalid option: -$OPTARG" >&2
+      USAGE
+      exit 1
+      ;;
+    :)
+      echo -e "\nOption -$OPTARG requires an argument" >&2
+      USAGE
+      exit 1
+      ;;
+  esac
 done
 
 if [ "$APP" == "null" ] ; then
-        USAGE
-        exit 1
+  USAGE
+  exit 1
 fi
 
 if [ ! -r $TOMCAT_LOG_DIR ] ; then
-	echo -e "\nTomcat log directory $TOMCAT_LOG_DIR could not be accessed.\n"
-	exit 1
+  echo -e "\nTomcat log directory $TOMCAT_LOG_DIR could not be accessed.\n"
+  exit 1
 fi
 
 find $TOMCAT_LOG_DIR -type f -name "*.????-??-??*" -mtime +$SAVETIME | xargs rm -vf
-
